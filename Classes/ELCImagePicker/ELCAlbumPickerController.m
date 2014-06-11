@@ -30,56 +30,63 @@
 
     UIBarButtonItem *cancelButton = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemCancel target:self.parent action:@selector(cancelImagePicker)];
 	[self.navigationItem setRightBarButtonItem:cancelButton];
-
-    NSMutableArray *tempArray = [[NSMutableArray alloc] init];
-	self.assetGroups = tempArray;
     
-    ALAssetsLibrary *assetLibrary = [[ALAssetsLibrary alloc] init];
-    self.library = assetLibrary;
-
-    // Load Albums into assetGroups
-    dispatch_async(dispatch_get_main_queue(), ^
-    {
-        @autoreleasepool {
+    if ([ALAssetsLibrary authorizationStatus] == ALAuthorizationStatusDenied) {
+        // User has explicitly denied app's request to access photos
         
-        // Group enumerator Block
-            void (^assetGroupEnumerator)(ALAssetsGroup *, BOOL *) = ^(ALAssetsGroup *group, BOOL *stop) 
-            {
-                if (group == nil) {
-                    return;
-                }
-                
-                // added fix for camera albums order
-                NSString *sGroupPropertyName = (NSString *)[group valueForProperty:ALAssetsGroupPropertyName];
-                NSUInteger nType = [[group valueForProperty:ALAssetsGroupPropertyType] intValue];
-                
-                if ([[sGroupPropertyName lowercaseString] isEqualToString:@"camera roll"] && nType == ALAssetsGroupSavedPhotos) {
-                    [self.assetGroups insertObject:group atIndex:0];
-                }
-                else {
-                    [self.assetGroups addObject:group];
-                }
+        UIAlertView * alert = [[UIAlertView alloc] initWithTitle:@"So that you can upload photos..." message:@"Go to\nthe Settings app >\nPrivacy > Photos,\nand flick the switch ON." delegate:nil cancelButtonTitle:@"OK" otherButtonTitles:nil];
+        [alert show];
+    } else {
+        NSMutableArray *tempArray = [[NSMutableArray alloc] init];
+        self.assetGroups = tempArray;
+        
+        ALAssetsLibrary *assetLibrary = [[ALAssetsLibrary alloc] init];
+        self.library = assetLibrary;
 
-                // Reload albums
-                [self performSelectorOnMainThread:@selector(reloadTableView) withObject:nil waitUntilDone:YES];
-            };
+        // Load Albums into assetGroups
+        dispatch_async(dispatch_get_main_queue(), ^
+        {
+            @autoreleasepool {
             
-            // Group Enumerator Failure Block
-            void (^assetGroupEnumberatorFailure)(NSError *) = ^(NSError *error) {
-                
-                UIAlertView * alert = [[UIAlertView alloc] initWithTitle:@"Error" message:[NSString stringWithFormat:@"Album Error: %@ - %@", [error localizedDescription], [error localizedRecoverySuggestion]] delegate:nil cancelButtonTitle:@"Ok" otherButtonTitles:nil];
-                [alert show];
-                
-                NSLog(@"A problem occured %@", [error description]);	                                 
-            };	
+            // Group enumerator Block
+                void (^assetGroupEnumerator)(ALAssetsGroup *, BOOL *) = ^(ALAssetsGroup *group, BOOL *stop) 
+                {
+                    if (group == nil) {
+                        return;
+                    }
                     
-            // Enumerate Albums
-            [self.library enumerateGroupsWithTypes:ALAssetsGroupAll
-                                   usingBlock:assetGroupEnumerator 
-                                 failureBlock:assetGroupEnumberatorFailure];
-        
-        }
-    });    
+                    // added fix for camera albums order
+                    NSString *sGroupPropertyName = (NSString *)[group valueForProperty:ALAssetsGroupPropertyName];
+                    NSUInteger nType = [[group valueForProperty:ALAssetsGroupPropertyType] intValue];
+                    
+                    if ([[sGroupPropertyName lowercaseString] isEqualToString:@"camera roll"] && nType == ALAssetsGroupSavedPhotos) {
+                        [self.assetGroups insertObject:group atIndex:0];
+                    }
+                    else {
+                        [self.assetGroups addObject:group];
+                    }
+
+                    // Reload albums
+                    [self performSelectorOnMainThread:@selector(reloadTableView) withObject:nil waitUntilDone:YES];
+                };
+                
+                // Group Enumerator Failure Block
+                void (^assetGroupEnumberatorFailure)(NSError *) = ^(NSError *error) {
+                    
+                    UIAlertView * alert = [[UIAlertView alloc] initWithTitle:@"Error" message:[NSString stringWithFormat:@"Album Error: %@ - %@", [error localizedDescription], [error localizedRecoverySuggestion]] delegate:nil cancelButtonTitle:@"Ok" otherButtonTitles:nil];
+                    [alert show];
+                    
+                    NSLog(@"A problem occured %@", [error description]);	                                 
+                };	
+                        
+                // Enumerate Albums
+                [self.library enumerateGroupsWithTypes:ALAssetsGroupAll
+                                       usingBlock:assetGroupEnumerator 
+                                     failureBlock:assetGroupEnumberatorFailure];
+            
+            }
+        });
+    }
 }
 
 - (void)reloadTableView
